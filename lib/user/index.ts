@@ -1,14 +1,42 @@
 import { supabase } from '../supabase'
 
 import { buildPrivateKey, getAddressFromPrivateKey } from '../crypto'
+import { encryptPrivateKey, decryptPrivateKey } from '../utils/encryption'
 
 export type User = {
-  privateKey: string
+  privateKey: string // This will be the encrypted one in DB, but decrypted in memory
   id: string
   createdAt: string
   phoneNumer: string
   name: string
   address: string
+  isPinRequired?: boolean
+  linkedinUrn?: string
+  verificationCode?: string
+}
+
+export async function linkLinkedinUrn(userId: string, urn: string): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ linkedin_urn: urn, verification_code: null }) // Clear code once linked
+    .eq('id', userId)
+
+  if (error) {
+    throw new Error(`Error linking LinkedIn URN: ${error.message}`)
+  }
+}
+
+export async function setVerificationCode(userId: string): Promise<string> {
+  const code = `CRYPTO-${Math.floor(1000 + Math.random() * 9000)}`
+  const { error } = await supabase
+    .from('users')
+    .update({ verification_code: code })
+    .eq('id', userId)
+
+  if (error) {
+    throw new Error(`Error setting verification code: ${error.message}`)
+  }
+  return code
 }
 
 export async function isUserRegistered(
@@ -26,6 +54,7 @@ export async function isUserRegistered(
 
 export async function getPrivateKeyByPhoneNumber(
   recipientPhone: string,
+  pin: string,
 ): Promise<string> {
   const { data, error } = await supabase
     .from('users')
@@ -40,7 +69,13 @@ export async function getPrivateKeyByPhoneNumber(
       })} `,
     )
   }
-  return data[0].private_key
+
+  const decrypted = decryptPrivateKey(data[0].private_key, pin)
+  if (!decrypted) {
+    throw new Error('Incorrect PIN. Could not decrypt private key.')
+  }
+
+  return decrypted
 }
 
 export async function getAddressByPhoneNumber(
@@ -65,7 +100,7 @@ export async function getUserFromId(userId: string): Promise<User> {
     throw new Error(`Error getting user from id, ${JSON.stringify({ error })}`)
   }
 
-  const [{ created_at, id, name, phone_number, private_key, address }] = data
+  const [{ created_at, id, name, phone_number, private_key, address, linkedin_urn, verification_code }] = data
 
   return {
     createdAt: created_at,
@@ -74,6 +109,8 @@ export async function getUserFromId(userId: string): Promise<User> {
     phoneNumer: phone_number,
     privateKey: private_key,
     address,
+    linkedinUrn: linkedin_urn,
+    verificationCode: verification_code,
   }
 }
 
@@ -96,22 +133,24 @@ export async function getAddressByUserId(userId: string): Promise<string> {
 
 export async function createUser(
   recipientPhone: string,
+  pin: string,
   recipientName?: string,
 ): Promise<string> {
   const privateKey = buildPrivateKey()
   const userAddress = getAddressFromPrivateKey(privateKey)
+  const encryptedKey = encryptPrivateKey(privateKey, pin)
 
   const user = await supabase.from('users').insert({
     phone_number: recipientPhone,
     name: recipientName,
-    private_key: privateKey,
+    private_key: encryptedKey,
     address: userAddress,
   })
 
   if (user.error) {
     throw new Error('Error creating user')
   }
-  return getAddressFromPrivateKey(privateKey)
+  return userAddress
 }
 
 export async function getUserFromPhoneNumber(
@@ -132,7 +171,7 @@ export async function getUserFromPhoneNumber(
     return null
   }
 
-  const [{ created_at, id, name, phone_number, private_key, address }] = users
+  const [{ created_at, id, name, phone_number, private_key, address, linkedin_urn, verification_code }] = users
 
   return {
     createdAt: created_at,
@@ -141,5 +180,7 @@ export async function getUserFromPhoneNumber(
     phoneNumer: phone_number,
     privateKey: private_key,
     address,
+    linkedinUrn: linkedin_urn,
+    verificationCode: verification_code,
   }
 }

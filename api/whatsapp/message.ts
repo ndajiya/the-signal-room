@@ -4,6 +4,7 @@ import {
   Whatsapp,
   sendMessageToPhoneNumber,
   sendSimpleButtonsMessage,
+  markMessageAsRead,
 } from '../../lib/whatsapp'
 
 import {
@@ -26,23 +27,46 @@ import {
   addReceiverToPayment,
   cancelPaymentRequest,
   confirmPaymentRequest,
-  getBscScanUrlForAddress,
+  getPolygonScanUrlForAddress,
   getReceiverUserFromUncompletedPaymentRequest,
   getRecipientAddressFromUncompletedPaymentRequest,
   isReceiverInputPending,
   isUserAwaitingAmountInput,
+  isUserAwaitingPinInput,
+  isUserAwaitingBalancePinInput,
+  isUserAwaitingLinkedinInput,
+  isUserAwaitingLinkedinChoice,
   makePaymentRequest,
   sendUsdtFromWallet,
+  setPaymentRequestToPinPending,
+  setPaymentRequestToBalancePending,
+  setPaymentRequestToLinkedinPending,
+  setPaymentRequestToLinkedinChoicePending,
   updatePaymentRequestToError,
+  getPendingPaymentRequest,
+  isRegistrationPending,
+  setRegistrationPending,
+  clearRegistrationPending,
 } from '../../lib/crypto/transaction'
+import { linkLinkedinUrn, setVerificationCode } from '../../lib/user'
 import { transformStringToNumber } from '../../lib/utils/number'
+import { getSetting } from '../../lib/settings'
+import { processInstagramLink, getLatestCandidate, updateDraftStatus } from '../../lib/viral-radar'
 
-async function sendMenuButtonsTo(phoneNumber: string) {
-  await sendSimpleButtonsMessage(phoneNumber, 'Qué querés hacer?', [
-    { title: 'Ingresar dinero', id: 'check_address' },
-    { title: 'Enviar dinero 💸', id: 'send_money' },
-    { title: 'Consultar saldo 🔎', id: 'check_balance' },
-  ])
+async function sendMenuButtonsTo(phoneNumber: string, isOwner = false) {
+  const buttons = [
+    { title: 'Deposit funds', id: 'check_address' },
+    { title: 'Give me my Fakn money!', id: 'send_money' },
+    { title: 'Link LinkedIn', id: 'link_linkedin' },
+    { title: 'Check balance 🔎', id: 'check_balance' },
+  ]
+  
+  if (isOwner) {
+    buttons.push({ title: 'Show Top 5', id: 'show_top' })
+    buttons.push({ title: 'Show Drafts', id: 'show_drafts' })
+  }
+
+  await sendSimpleButtonsMessage(phoneNumber, 'What would you like to do?', buttons)
 }
 
 const handler: VercelApiHandler = async (
@@ -66,29 +90,83 @@ const handler: VercelApiHandler = async (
           text,
         },
       } = data
+
+      const ownerNumber = await getSetting('OWNER_WHATSAPP_NUMBER')
+      const isOwner = recipientPhone === ownerNumber
+
       const sendMenuButtons = async () => {
-        sendMenuButtonsTo(recipientPhone)
-      }
-
-      // fallback another for deployed bot. Remove when we have a proper way to handle this
-      const isBrazilNumber = recipientPhone.startsWith('55')
-      if (isBrazilNumber) {
-        if (process.env.ADMIN_PHONE_NUMBER && process.env.BRAZIL_MESSAGE) {
-          await sendMessageToPhoneNumber(
-            recipientPhone,
-            process.env.BRAZIL_MESSAGE,
-          )
-          await sendMessageToPhoneNumber(
-            process.env.ADMIN_PHONE_NUMBER,
-            `${recipientPhone} - ${recipientName} has tried to use bot`,
-          )
-        }
-
-        return
+        sendMenuButtonsTo(recipientPhone, isOwner)
       }
 
       try {
-        if (typeOfMessage === 'text_message') {
+        if (typeOfMessage === 'text_message' && text) {
+          const body = text.body.trim()
+          const instagramRegex = /https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\/[a-zA-Z0-9_-]+\/?/
+          const match = body.match(instagramRegex)
+
+          if (match) {
+            if (!isOwner) {
+              await sendMessageToPhoneNumber(recipientPhone, "This bot only processes content from the approved owner account.")
+              res.status(200).send('ok')
+              return
+            }
+
+            const url = match[0]
+            const note = body.replace(url, '').trim()
+            
+            await sendMessageToPhoneNumber(recipientPhone, "Processing your Viral Radar candidate... 📡")
+            
+            try {
+              const { analysis, draft } = await processInstagramLink(url, recipientPhone, note)
+              
+              let response = `Viral Radar Score: ${analysis.viral_score}/100\n\n`
+              response += `*Why it works:*\n${analysis.why_it_worked}\n\n`
+              response += `*Best LinkedIn angle:*\n${analysis.linkedin_angles[0]}\n\n`
+              
+              if (draft) {
+                response += `*Draft:*\n${draft.linkedin_post}`
+                await sendMessageToPhoneNumber(recipientPhone, response)
+                await sendSimpleButtonsMessage(recipientPhone, "What's next?", [
+                  { title: 'APPROVE', id: 'approve_draft' },
+                  { title: 'REWRITE', id: 'rewrite_draft' },
+                  { title: 'SKIP', id: 'skip_candidate' }
+                ])
+              } else {
+                response += `Score too low for automatic draft generation.`
+                await sendMessageToPhoneNumber(recipientPhone, response)
+              }
+            } catch (error) {
+              console.error('Viral Radar Error:', error)
+              await sendMessageToPhoneNumber(recipientPhone, "Error processing Instagram link. Please try again.")
+            }
+            res.status(200).send('ok')
+            return
+          }
+
+          if (isOwner) {
+            const upperBody = body.toUpperCase()
+            if (upperBody === 'APPROVE') {
+              const latest = await getLatestCandidate(recipientPhone)
+              if (latest && latest.linkedin_drafts?.[0]) {
+                await updateDraftStatus(latest.id, 'approved')
+                await sendMessageToPhoneNumber(recipientPhone, "Draft approved and added to queue! ✅")
+                await sendMenuButtons()
+              }
+              res.status(200).send('ok')
+              return
+            }
+            if (upperBody === 'SKIP') {
+              const latest = await getLatestCandidate(recipientPhone)
+              if (latest) {
+                await updateDraftStatus(latest.id, 'rejected')
+                await sendMessageToPhoneNumber(recipientPhone, "Candidate skipped. ❌")
+                await sendMenuButtons()
+              }
+              res.status(200).send('ok')
+              return
+            }
+          }
+
           const user = await getUserFromPhoneNumber(recipientPhone)
 
           if (user) {
@@ -102,15 +180,15 @@ const handler: VercelApiHandler = async (
                 })
                 await sendSimpleButtonsMessage(
                   recipientPhone,
-                  `Cuántos USDT deseas enviar a ${validatedReceiver}?`,
-                  [{ title: 'Cancelar transacción', id: 'cancel_send_money' }],
+                  `How many USDT do you want to send to ${validatedReceiver}?`,
+                  [{ title: 'Cancel transaction', id: 'cancel_send_money' }],
                 )
                 return
               } catch (error) {
                 await sendSimpleButtonsMessage(
                   recipientPhone,
-                  `El valor no es válido, fijate que cumpla con el formato de dirección o que el número de teléfono tenga cuenta con Cryptosapp \n ${error}`,
-                  [{ title: 'Cancelar transacción', id: 'cancel_send_money' }],
+                  `The value is not valid, make sure it matches the address format or that the phone number has a Signal Room account \n ${error}`,
+                  [{ title: 'Cancel transaction', id: 'cancel_send_money' }],
                 )
               }
 
@@ -124,60 +202,185 @@ const handler: VercelApiHandler = async (
               } catch (error) {
                 await sendSimpleButtonsMessage(
                   recipientPhone,
-                  `El formato no es válido 🤕, fijate que sea un número entero o decimal!`,
-                  [{ title: 'Cancelar transacción', id: 'cancel_send_money' }],
+                  `The format is not valid 🤕, make sure it's an integer or decimal number!`,
+                  [{ title: 'Cancel transaction', id: 'cancel_send_money' }],
                 )
                 return
               }
 
+              await setPaymentRequestToPinPending({ userId: user.id, amount })
+              await sendMessageToPhoneNumber(
+                recipientPhone,
+                'Please enter your 6-digit PIN to confirm the transaction 🔐',
+              )
+              return
+            }
+
+            if (text && (await isUserAwaitingLinkedinInput(user.id))) {
+              const urn = text.body
               try {
+                await linkLinkedinUrn(user.id, urn)
+                await sendMessageToPhoneNumber(
+                  recipientPhone,
+                  `Successfully linked your LinkedIn: ${urn} ✅`,
+                )
+                await cancelPaymentRequest(user.id)
+              } catch (error) {
+                await cancelPaymentRequest(user.id)
+                await sendMessageToPhoneNumber(
+                  recipientPhone,
+                  `Error linking LinkedIn 🤕`,
+                )
+              }
+              await sendMenuButtons()
+              return
+            }
+
+            if (text && (await isUserAwaitingBalancePinInput(user.id))) {
+              const pin = text.body
+              await sendMessageToPhoneNumber(recipientPhone, 'Loading ⏳')
+
+              try {
+                const privateKey = await getPrivateKeyByPhoneNumber(
+                  recipientPhone,
+                  pin,
+                )
+
+                const { ethBalance, usdtBalance } = await getAccountBalances(
+                  privateKey,
+                )
+
+                await sendMessageToPhoneNumber(
+                  recipientPhone,
+                  `${ethBalance} ETH`,
+                )
+                await sendMessageToPhoneNumber(
+                  recipientPhone,
+                  `${usdtBalance} USDT`,
+                )
+                await cancelPaymentRequest(user.id)
+              } catch (error) {
+                await cancelPaymentRequest(user.id)
+                await sendMessageToPhoneNumber(
+                  recipientPhone,
+                  `Incorrect PIN or error loading balance 🤕`,
+                )
+              }
+              await sendMenuButtons()
+              return
+            }
+
+            if (text && (await isUserAwaitingPinInput(user.id))) {
+              const pin = text.body
+
+              try {
+                const pr = await getPendingPaymentRequest(user.id)
+                if (!pr || !pr.amount) throw new Error('No pending payment')
+
                 const receiverUser =
                   await getReceiverUserFromUncompletedPaymentRequest(user.id)
 
                 const senderPrivateKey = await getPrivateKeyByPhoneNumber(
                   recipientPhone,
+                  pin,
                 )
 
                 await sendUsdtFromWallet({
-                  tokenAmount: amount,
+                  tokenAmount: pr.amount,
                   privateKey: senderPrivateKey,
                   toAddress:
                     await getRecipientAddressFromUncompletedPaymentRequest(
                       user.id,
                     ),
+                  isSponsored: true, // Pay for user withdrawals/transfers
                 })
 
-                await confirmPaymentRequest({ userId: user.id, amount })
+                await confirmPaymentRequest({
+                  userId: user.id,
+                  amount: pr.amount,
+                })
 
                 const address = await getAddressByPhoneNumber(recipientPhone)
 
                 await sendMessageToPhoneNumber(
                   recipientPhone,
-                  'Pago exitoso! 🎉 Para más información: 👇👇👇 ',
+                  'Payment successful! 🎉 For more information: 👇👇👇 ',
                 )
 
                 if (receiverUser) {
                   await sendMessageToPhoneNumber(
                     receiverUser.phoneNumer,
-                    `Recibiste ${amount} USDT de ${user.name} 🌟`,
+                    `You received ${pr.amount} USDT from ${user.name} 🌟`,
                   )
                   await sendMenuButtonsTo(receiverUser.phoneNumer)
                 }
 
-                const bscScanUrl = getBscScanUrlForAddress(address)
+                const polygonScanUrl = getPolygonScanUrlForAddress(address)
 
-                await sendMessageToPhoneNumber(recipientPhone, bscScanUrl)
+                await sendMessageToPhoneNumber(recipientPhone, polygonScanUrl)
               } catch (error) {
                 await updatePaymentRequestToError(user.id)
 
                 await sendMessageToPhoneNumber(
                   recipientPhone,
-                  `No se pudo realizar el pago 😢`,
+                  `The payment could not be completed 😢`,
                 )
 
                 await sendMessageToPhoneNumber(
                   recipientPhone,
-                  `Tuvimos un error: ${error}`,
+                  `We had an error: ${(error as Error).message}`,
+                )
+              }
+              await sendMenuButtons()
+              return
+            }
+
+            if (text && (await isUserAwaitingLinkedinChoice(user.id))) {
+                // This state is handled by buttons, but we can clear it if they send text
+                await cancelPaymentRequest(user.id)
+            }
+
+            await sendMessageToPhoneNumber(
+              recipientPhone,
+              `Hello again${recipientName ? ` ${recipientName}` : ''}! 👋`,
+            )
+            await sendMenuButtons()
+          } else {
+            if (text && (await isRegistrationPending(recipientPhone))) {
+              const pin = text.body
+              if (pin.length < 6) {
+                await sendMessageToPhoneNumber(
+                  recipientPhone,
+                  'The PIN must be at least 6 digits. Please try again:',
+                )
+                return
+              }
+
+              await sendMessageToPhoneNumber(
+                recipientPhone,
+                'Creating your wallet! 🔨',
+              )
+
+              try {
+                const walletAddress = await createUser(
+                  recipientPhone,
+                  pin,
+                  recipientName,
+                )
+                await clearRegistrationPending(recipientPhone)
+
+                await sendMessageToPhoneNumber(
+                  recipientPhone,
+                  'Your wallet was created! 🚀✨\n your address is:',
+                )
+                await sendSimpleButtonsMessage(recipientPhone, walletAddress, [
+                  { title: 'What is it?', id: 'info_address' },
+                ])
+                await sendMenuButtons()
+              } catch (error) {
+                await sendMessageToPhoneNumber(
+                  recipientPhone,
+                  'Error creating wallet 🤕',
                 )
               }
               return
@@ -185,22 +388,16 @@ const handler: VercelApiHandler = async (
 
             await sendMessageToPhoneNumber(
               recipientPhone,
-              `Hola de nuevo${recipientName ? ` ${recipientName}` : ''}! 👋`,
-            )
-            await sendMenuButtons()
-          } else {
-            await sendMessageToPhoneNumber(
-              recipientPhone,
-              `Hola ${recipientName}! 👋`,
+              `Hello ${recipientName}! 👋`,
             )
             await sendMessageToPhoneNumber(
               recipientPhone,
-              `Soy tu crypto-bot 🤖 favorito.\nTu servicio de billetera digital más seguro, confiable y fácil de usar.`,
+              `I'm your favorite crypto-bot 🤖.\nYour most secure, reliable, and easy-to-use digital wallet service.`,
             )
             await sendSimpleButtonsMessage(
               recipientPhone,
-              'Veo que no tenés una billetera asociada a éste número. Querés crear una?',
-              [{ title: 'Crear una billetera', id: 'create_wallet' }],
+              "I see you don't have a wallet associated with this number. Would you like to create one?",
+              [{ title: 'Create a wallet', id: 'create_wallet' }],
             )
           }
         }
@@ -211,9 +408,48 @@ const handler: VercelApiHandler = async (
           const user = await getUserFromPhoneNumber(recipientPhone)
 
           switch (button_id) {
+            case 'approve_draft': {
+              const latest = await getLatestCandidate(recipientPhone)
+              if (latest) {
+                await updateDraftStatus(latest.id, 'approved')
+                await sendMessageToPhoneNumber(recipientPhone, "Draft approved and added to queue! ✅")
+              }
+              await sendMenuButtons()
+              break
+            }
+            case 'skip_candidate': {
+              const latest = await getLatestCandidate(recipientPhone)
+              if (latest) {
+                await updateDraftStatus(latest.id, 'rejected')
+                await sendMessageToPhoneNumber(recipientPhone, "Candidate skipped. ❌")
+              }
+              await sendMenuButtons()
+              break
+            }
+            case 'link_via_urn': {
+              if (!user) throw new Error('User not found')
+              await cancelPaymentRequest(user.id) // Clear choice pending
+              await setPaymentRequestToLinkedinPending(user.id)
+              await sendMessageToPhoneNumber(
+                recipientPhone,
+                'Please enter your LinkedIn Profile URN (e.g., urn:li:person:XXXX) 🔗',
+              )
+              break
+            }
+            case 'link_via_code': {
+              if (!user) throw new Error('User not found')
+              await cancelPaymentRequest(user.id) // Clear choice pending
+              const code = await setVerificationCode(user.id)
+              await sendMessageToPhoneNumber(
+                recipientPhone,
+                `Your unique verification code is: *${code}*\n\nComment this code on any of our LinkedIn posts to link your account automatically! 🚀`,
+              )
+              await sendMenuButtons()
+              break
+            }
             case 'send_money': {
               if (!user) {
-                throw new Error('Inesperadamente no se encontró el usuario')
+                throw new Error('Unexpectedly user not found')
               }
 
               const { id } = user
@@ -226,15 +462,15 @@ const handler: VercelApiHandler = async (
 
               await sendMessageToPhoneNumber(
                 recipientPhone,
-                `A quién deseas enviar dinero?`,
+                `Who do you want to send money to?`,
               )
 
               await sendSimpleButtonsMessage(
                 recipientPhone,
-                `Ingresá el número de celular o la dirección de la billetera de destino`,
+                `Enter the phone number or the wallet address of the recipient`,
                 [
                   {
-                    title: 'Cancelar',
+                    title: 'Cancel',
                     id: 'cancel_send_money',
                   },
                 ],
@@ -242,96 +478,81 @@ const handler: VercelApiHandler = async (
 
               break
             }
+            case 'link_linkedin': {
+              if (!user) {
+                throw new Error('Unexpectedly user not found')
+              }
+              await setPaymentRequestToLinkedinChoicePending(user.id)
+              await sendSimpleButtonsMessage(
+                recipientPhone,
+                'How would you like to link your LinkedIn account?',
+                [
+                  { title: 'Provide URN', id: 'link_via_urn' },
+                  { title: 'Get Code', id: 'link_via_code' },
+                ],
+              )
+              break
+            }
             case 'check_balance': {
-              await sendMessageToPhoneNumber(recipientPhone, 'Cargando ⏳')
-
-              const privateKey = await getPrivateKeyByPhoneNumber(
-                recipientPhone,
-              )
-
-              const { bnbBalance, usdtBalance } = await getAccountBalances(
-                privateKey,
-              )
-
+              if (!user) {
+                throw new Error('Unexpectedly user not found')
+              }
+              await setPaymentRequestToBalancePending(user.id)
               await sendMessageToPhoneNumber(
                 recipientPhone,
-                `${bnbBalance} BNB`,
+                'Please enter your 6-digit PIN to check your balance 🔐',
               )
-              await sendMessageToPhoneNumber(
-                recipientPhone,
-                `${usdtBalance} USDT`,
-              )
-              await sendMenuButtons()
               break
             }
             case 'check_address': {
-              await sendMessageToPhoneNumber(recipientPhone, 'Cargando ⏳')
+              await sendMessageToPhoneNumber(recipientPhone, 'Loading ⏳')
               const address = await getAddressByPhoneNumber(recipientPhone)
               await sendMessageToPhoneNumber(
                 recipientPhone,
-                'Para ingresar dinero, tenés que enviarlo a esta dirección:',
+                'To deposit funds, you must send them to this address:',
               )
               await sendMessageToPhoneNumber(recipientPhone, address)
               await sendMessageToPhoneNumber(
                 recipientPhone,
-                '(Enviá USDT o BNB por red Binance Smart Chain)',
+                '(Send USDT or ETH via Polygon zkEVM network)',
               )
               await sendMenuButtons()
               break
             }
             case 'create_wallet': {
+              await setRegistrationPending(recipientPhone)
               await sendMessageToPhoneNumber(
                 recipientPhone,
-                'Creando tu billetera! 🔨',
+                'Please choose a 6-digit PIN to secure your new wallet 🔐',
               )
-
-              const walletAddress = await createUser(
-                recipientPhone,
-                recipientName,
-              )
-
-              await sendMessageToPhoneNumber(
-                recipientPhone,
-                'Tu billetera fue creada! 🚀✨\n tu dirección es:',
-              )
-              await sendSimpleButtonsMessage(recipientPhone, walletAddress, [
-                { title: 'Qué es?', id: 'info_address' },
-              ])
-
-              await sendMenuButtons()
-
               break
             }
             case 'info_address': {
               await sendSimpleButtonsMessage(
                 recipientPhone,
-                'Una dirección es como un número de cuenta bancaria que podés usar para recibir dinero de otras personas. En este caso la billetera usa la red Binance Smart Chain, y soporta la criptomoneda USDT. Para hacer transferencias vas a necesitar BNB',
-                [{ title: 'Qué es BNB?', id: 'info_bnb' }],
+                'An address is like a bank account number that you can use to receive money from other people. In this case, the wallet uses the Polygon zkEVM network and supports USDT cryptocurrency. To make transfers, you will need ETH.',
+                [{ title: 'What is ETH?', id: 'info_eth' }],
               )
 
               await sendMenuButtons()
 
               break
             }
-            case 'info_bnb':
+            case 'info_eth':
               await sendMessageToPhoneNumber(
                 recipientPhone,
-                'El BNB es el combustible que necesita la blockchain para poner en funcionamiento la red.',
-              )
-              await sendMessageToPhoneNumber(
-                recipientPhone,
-                'Para mas informacion mira este enlace:\nhttps://academy.binance.com/es/articles/what-is-bnb',
+                'ETH is the fuel that the blockchain needs to operate the network.',
               )
               await sendMenuButtons()
               break
             case 'cancel_send_money':
               if (!user) {
-                throw new Error('Inesperadamente no se encontró el usuario')
+                throw new Error('Unexpectedly user not found')
               }
               await cancelPaymentRequest(user.id)
               await sendMessageToPhoneNumber(
                 recipientPhone,
-                'Cancelaste el envío.',
+                'Transfer cancelled.',
               )
 
               await sendMenuButtons()
@@ -344,7 +565,7 @@ const handler: VercelApiHandler = async (
         console.error({ error })
         await sendMessageToPhoneNumber(
           recipientPhone,
-          `🔴 Ha ocurrido un error: ${JSON.stringify(
+          `🔴 An error occurred: ${JSON.stringify(
             error,
             Object.getOwnPropertyNames(error),
           )}`,
@@ -352,7 +573,7 @@ const handler: VercelApiHandler = async (
       }
 
       // note: important to mark message as read to avoid duplicate messages
-      await Whatsapp.markMessageAsRead({
+      await markMessageAsRead({
         message_id: messageId,
       })
 
@@ -361,7 +582,7 @@ const handler: VercelApiHandler = async (
     }
   } catch (error) {
     console.error({ error })
-    res.status(500)
+    res.status(500).send('Internal server error')
     return
   }
 }
