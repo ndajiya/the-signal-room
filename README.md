@@ -147,9 +147,5 @@ This repository is configured so the root Vercel URL does not show a blank 404 p
 
 That means users can open the deployment URL directly and land on the configuration dashboard instead of Vercel's default 404 screen.
 
-## License
-
-This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
-
 ---
 *Built for founders who want to scale their presence and reward their tribe.*
