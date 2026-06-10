@@ -80,7 +80,6 @@ Recommended in the Vercel project settings after import:
 Add these environment variables in Vercel before the first production test:
 
 - `ADMIN_SECRET`
-- `ADMIN_MASTER_PIN`
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `QUICK_NODE_URL`
