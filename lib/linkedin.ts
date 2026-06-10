@@ -121,11 +121,9 @@ export async function rewardCommenters(
 ) {
   const accessToken = process.env.LINKEDIN_ACCESS_TOKEN
   const sponsorKey = process.env.SPONSOR_PRIVATE_KEY
-  const masterPin = process.env.ADMIN_MASTER_PIN // A master PIN for admin-triggered rewards
 
   if (!accessToken) throw new Error('LINKEDIN_ACCESS_TOKEN not set')
   if (!sponsorKey) throw new Error('SPONSOR_PRIVATE_KEY not set')
-  if (!masterPin) throw new Error('ADMIN_MASTER_PIN not set')
 
   const configuredRewardAmount = await getNumberSetting('COMMENT_REWARD_AMOUNT', 1)
   const configuredLimit = await getNumberSetting('MAX_COMMENTERS_TO_REWARD', 25)
