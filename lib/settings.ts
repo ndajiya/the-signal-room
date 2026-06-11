@@ -70,16 +70,19 @@ export async function updateSetting(key: string, value: string): Promise<void> {
       .upsert({ key, value, updated_at: new Date().toISOString() })
 
     if (error) {
+      console.error(`DB Upsert failed for ${key}:`, error.message)
       throw new Error(`Error updating setting ${key}: ${error.message}`)
     }
     
     // Remove from in-memory store if successfully saved to DB
     inMemorySettings.delete(key)
-    console.log(`Setting ${key} saved to database`)
+    console.log(`Setting ${key} saved to database successfully`)
   } catch (error) {
     // Fallback to in-memory storage if Supabase connection fails
     inMemorySettings.set(key, value)
-    console.log(`Setting ${key} stored in memory (Supabase connection failed: ${(error as Error).message})`)
+    console.warn(`Setting ${key} stored in memory only (Supabase failure: ${(error as Error).message})`)
+    // Rethrow to let the API handler know it failed to persist
+    throw error
   }
 }
 
@@ -149,13 +152,25 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     'REWARD_ONLY_FIRST_UNIQUE_COMMENT',
     'ADMIN_SECRET',
     'OWNER_WHATSAPP_NUMBER',
+    'AI_PROVIDER',
     'OPENAI_API_KEY',
+    'OPENAI_MODEL',
+    'ANTHROPIC_API_KEY',
+    'ANTHROPIC_MODEL',
     'BRAND_NAME',
     'BRAND_TARGET_AUDIENCE',
     'BRAND_VALUE_PROPOSITION',
     'LINKEDIN_DRAFT_PROMPT',
     'SUPABASE_URL',
-    'SUPABASE_ANON_KEY'
+    'SUPABASE_ANON_KEY',
+    'META_WA_ACCESS_TOKEN',
+    'META_WA_SENDER_PHONE_NUMBER_ID',
+    'META_WA_WABA_ID',
+    'LINKEDIN_ACCESS_TOKEN',
+    'COMMENT_REWARD_AMOUNT',
+    'MAX_COMMENTERS_TO_REWARD',
+    'MAX_TOTAL_REWARD_PER_POST',
+    'REWARD_ONLY_FIRST_UNIQUE_COMMENT'
   ]
   
   for (const k of keys) {

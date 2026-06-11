@@ -50,6 +50,18 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Enable RLS on settings table
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow all access to anon role (dashboard uses anon key)
+-- In a production environment with sensitive data, you should restrict this further
+-- or use service_role key for backend operations.
+CREATE POLICY "Allow anon all access to settings" ON settings
+    FOR ALL
+    TO anon
+    USING (true)
+    WITH CHECK (true);
+
 -- Approved Owners Table
 CREATE TABLE approved_owners (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

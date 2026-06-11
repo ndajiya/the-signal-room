@@ -27,7 +27,8 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
         <div id="settings-section" class="hidden">
             <div id="supabase-warning" class="hidden mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700">
                 <p class="font-bold">⚠️ Supabase Not Connected</p>
-                <p class="text-sm">Settings are currently being saved in <strong>temporary memory only</strong>. They will be lost if the server restarts or the page is refreshed. Please complete the "Setup Supabase Database" section below first.</p>
+                <p class="text-sm mb-2">Settings are currently being saved in <strong>temporary memory only</strong>. They will be lost if the server restarts or the page is refreshed.</p>
+                <p class="text-xs">Ensure you have run the updated <code class="bg-red-200 px-1 rounded">scripts/setup_viral_radar.sql</code> in your Supabase SQL Editor to enable the correct permissions (RLS policies).</p>
             </div>
 
             <div id="required-summary" class="mb-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -770,7 +771,7 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                 });
                 
                 if (res.ok) {
-                    alert('Supabase configuration saved successfully! ✅\\n\\nYour settings will now be stored in the database.');
+                    alert('Supabase configuration saved successfully! ✅\\n\\nYour settings will now be stored in the database. If they still vanish, ensure you have applied the RLS policies from scripts/setup_viral_radar.sql');
                     loadSettings();
                 } else {
                     const error = await res.text();
