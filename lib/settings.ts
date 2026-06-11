@@ -124,18 +124,26 @@ async function migrateInMemorySettingsToDB(): Promise<void> {
   }
 }
 
+// Helper to mask sensitive keys
+function maskSensitiveValue(key: string, value: string | undefined | null): string {
+  if (!value) return ''
+  const sensitiveKeywords = ['KEY', 'TOKEN', 'SECRET', 'PRIVATE', 'ID', 'PASSWORD']
+  const isSensitive = sensitiveKeywords.some((kw) => key.toUpperCase().includes(kw))
+  return isSensitive ? '********' : value
+}
+
 export async function getAllSettings(): Promise<Record<string, string>> {
-  let data, error;
+  let data, error
   try {
-    const result = await getSupabaseClient().from('settings').select('*');
-    data = result.data;
-    error = result.error;
+    const result = await getSupabaseClient().from('settings').select('*')
+    data = result.data
+    error = result.error
   } catch (e) {
-    console.error('Supabase connection failed:', e);
+    console.error('Supabase connection failed:', e)
   }
-  
+
   const settings: Record<string, string> = {}
-  
+
   // Start with common env vars as defaults
   const keys = [
     'QUICK_NODE_URL',
@@ -170,29 +178,24 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     'COMMENT_REWARD_AMOUNT',
     'MAX_COMMENTERS_TO_REWARD',
     'MAX_TOTAL_REWARD_PER_POST',
-    'REWARD_ONLY_FIRST_UNIQUE_COMMENT'
+    'REWARD_ONLY_FIRST_UNIQUE_COMMENT',
   ]
-  
+
   for (const k of keys) {
     if (process.env[k]) {
-      // For sensitive keys, mask the value
-      if (k.includes('KEY') || k.includes('TOKEN') || k.includes('SECRET') || k.includes('PRIVATE')) {
-        settings[k] = '********'
-      } else {
-        settings[k] = process.env[k] || ''
-      }
+      settings[k] = maskSensitiveValue(k, process.env[k])
     }
   }
 
   if (data && !error) {
-    data.forEach(s => {
-      settings[s.key] = s.value
+    data.forEach((s) => {
+      settings[s.key] = maskSensitiveValue(s.key, s.value)
     })
   }
 
   // Add in-memory settings (overwrites DB values if same key exists)
   for (const [key, value] of inMemorySettings.entries()) {
-    settings[key] = value
+    settings[key] = maskSensitiveValue(key, value)
   }
 
   return settings

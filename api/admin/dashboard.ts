@@ -381,7 +381,13 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                         const key = setting.key;
                         const value = settings[key] || '';
                         const displayValue = value === '********' ? '[Hidden]' : (value || '[Not Set]');
-                        const isHidden = value === '********' || key.includes('KEY') || key.includes('TOKEN') || key.includes('SECRET') || key.includes('PRIVATE');
+                        const isHidden = value === '********' || 
+                                         key.includes('KEY') || 
+                                         key.includes('TOKEN') || 
+                                         key.includes('SECRET') || 
+                                         key.includes('PRIVATE') || 
+                                         key.includes('ID') || 
+                                         key.includes('PASSWORD');
                         const isRequired = setting.required;
                         const description = setting.description;
                         
