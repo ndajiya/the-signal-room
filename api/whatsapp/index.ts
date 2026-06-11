@@ -34,9 +34,12 @@ const handler: VercelApiHandler = async (
     }
   } else if (req.method === 'POST') {
     try {
+      // Get the host from headers or fallback to env var
+      const host = req.headers.host || process.env.VERCEL_PROD_URL || process.env.VERCEL_URL;
+      
       // send request to other lambda function but not await it to responde immediately to whatsapp with a 200 status code
       axios.post(
-        `https://${process.env.VERCEL_PROD_URL}/api/whatsapp/message`,
+        `https://${host}/api/whatsapp/message`,
         req.body,
       )
     } catch (error) {

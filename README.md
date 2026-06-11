@@ -89,7 +89,7 @@ Once the dashboard is live, you can configure the rest of the application settin
 Every user who deploys this bot (the "Operator") must provide their own keys for the following services:
 
 - **Blockchain**: `QUICK_NODE_URL`, `SPONSOR_PRIVATE_KEY`, `MASTER_ENCRYPTION_KEY`
-- **WhatsApp**: `META_WA_ACCESS_TOKEN`, `META_WA_SENDER_PHONE_NUMBER_ID`, `META_WA_WABA_ID`, `OWNER_WHATSAPP_NUMBER`
+- **WhatsApp**: `META_WA_ACCESS_TOKEN`, `META_WA_VERIFY_TOKEN`, `META_WA_SENDER_PHONE_NUMBER_ID`, `META_WA_WABA_ID`, `OWNER_WHATSAPP_NUMBER`
 - **AI (Interchangeable)**:
   - `AI_PROVIDER`: "openai" or "anthropic" (Claude).
   - `OPENAI_API_KEY`: Required if provider is "openai".
@@ -132,7 +132,8 @@ Run the [setup_viral_radar.sql](file:///c%3A/Users/ndaji/Documents/cryptosapp-wa
 5. Set up the "Whatsapp" product and click "Start using the API".
 6. Copy the "Phone number ID" and "WhatsApp Business Account ID" to your environment variables.
 7. Generate an **Admin System User** token with `business_management`, `whatsapp_business_messaging`, and `whatsapp_business_management` permissions.
-8. Configure the Webhook callback URL to `https://{YOUR_URL}/api/whatsapp` and set your verify token.
+8. Configure the Webhook callback URL to `https://{YOUR_URL}/api/whatsapp` and set your verify token (this must match the `META_WA_VERIFY_TOKEN` you set in the Admin Dashboard).
+9. Subscribe to the `messages` field under **Webhooks**.
 
 ### 3. Admin Dashboard Configuration
 Once deployed, visit `/api/admin/dashboard` to set up your brand identity and critical keys:

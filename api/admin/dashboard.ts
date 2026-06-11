@@ -207,6 +207,14 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             usedFor: 'Authorizes the bot to send WhatsApp messages through the Meta Cloud API.'
                         },
                         {
+                            key: 'META_WA_VERIFY_TOKEN',
+                            required: true,
+                            description: 'Webhook verification token',
+                            format: 'Any random string you choose',
+                            whereToGet: 'Create your own random string and paste it here, then use the SAME string in Meta Developer Portal.',
+                            usedFor: 'Authenticates the webhook connection between Meta and your Vercel deployment.'
+                        },
+                        {
                             key: 'META_WA_SENDER_PHONE_NUMBER_ID',
                             required: true,
                             description: 'Sender phone number ID',

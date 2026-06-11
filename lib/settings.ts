@@ -172,6 +172,7 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     'SUPABASE_URL',
     'SUPABASE_ANON_KEY',
     'META_WA_ACCESS_TOKEN',
+    'META_WA_VERIFY_TOKEN',
     'META_WA_SENDER_PHONE_NUMBER_ID',
     'META_WA_WABA_ID',
     'LINKEDIN_ACCESS_TOKEN',
