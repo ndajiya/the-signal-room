@@ -25,6 +25,11 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
         </div>
 
         <div id="settings-section" class="hidden">
+            <div id="supabase-warning" class="hidden mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700">
+                <p class="font-bold">⚠️ Supabase Not Connected</p>
+                <p class="text-sm">Settings are currently being saved in <strong>temporary memory only</strong>. They will be lost if the server restarts or the page is refreshed. Please complete the "Setup Supabase Database" section below first.</p>
+            </div>
+
             <div id="required-summary" class="mb-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <h2 class="text-lg font-bold text-yellow-800 mb-2">📋 Required Settings Summary</h2>
                 <p class="text-sm text-yellow-600 mb-2">The following settings are required for the application to function:</p>
@@ -152,8 +157,8 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             key: 'MASTER_ENCRYPTION_KEY',
                             required: true,
                             description: '32-byte key for encrypting user data',
-                            format: 'Long random secret, minimum 32 characters',
-                            whereToGet: 'Generate a long random secret with a password manager or secure secret generator.',
+                            format: 'Long random secret, minimum 32 characters (e.g. 64 hex characters)',
+                            whereToGet: 'Generate a long random secret using the "Generate" button below or a secure secret generator.',
                             usedFor: 'Encrypts sensitive stored data such as private keys and secrets at rest.'
                         }
                     ],
@@ -197,7 +202,7 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             required: true,
                             description: 'WhatsApp Cloud API access token',
                             format: 'Meta access token string',
-                            whereToGet: 'Meta for Developers -> Your App -> WhatsApp -> API Setup -> temporary or permanent access token.',
+                            whereToGet: 'Meta for Developers -> Your App -> WhatsApp -> API Setup (Temporary) OR App Settings -> Configuration (Permanent System User Token).',
                             usedFor: 'Authorizes the bot to send WhatsApp messages through the Meta Cloud API.'
                         },
                         {
@@ -205,7 +210,7 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             required: true,
                             description: 'Sender phone number ID',
                             format: 'Numeric ID string from Meta',
-                            whereToGet: 'Meta for Developers -> WhatsApp -> API Setup -> Phone number ID.',
+                            whereToGet: 'Meta for Developers -> WhatsApp -> API Setup -> Look under "Step 1: Select phone numbers" for "Phone number ID".',
                             usedFor: 'Tells Meta which WhatsApp business number the bot should send messages from.'
                         },
                         {
@@ -213,7 +218,7 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             required: true,
                             description: 'WhatsApp Business Account ID',
                             format: 'Numeric ID string from Meta',
-                            whereToGet: 'Meta for Developers or Business Manager -> WhatsApp account details -> WABA ID.',
+                            whereToGet: 'Meta for Developers -> WhatsApp -> API Setup -> Look under "Step 1: Select phone numbers" for "WhatsApp Business Account ID".',
                             usedFor: 'Identifies your WhatsApp Business Account when initializing the WhatsApp client.'
                         },
                         {
@@ -227,12 +232,44 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                     ],
                     'AI': [
                         {
+                            key: 'AI_PROVIDER',
+                            required: false,
+                            description: 'AI model provider to use',
+                            format: '"openai" or "anthropic"',
+                            whereToGet: 'Choose either "openai" or "anthropic".',
+                            usedFor: 'Determines which AI service is used for generating content.'
+                        },
+                        {
                             key: 'OPENAI_API_KEY',
-                            required: true,
+                            required: false,
                             description: 'OpenAI API key for content generation',
                             format: 'OpenAI API key string',
                             whereToGet: 'OpenAI dashboard -> API keys.',
-                            usedFor: 'Generates drafts, summaries, and other AI-powered content.'
+                            usedFor: 'Generates content when AI_PROVIDER is set to "openai".'
+                        },
+                        {
+                            key: 'OPENAI_MODEL',
+                            required: false,
+                            description: 'OpenAI model to use',
+                            format: 'e.g. gpt-4o, gpt-4-turbo, gpt-3.5-turbo',
+                            whereToGet: 'OpenAI documentation for available models.',
+                            usedFor: 'Specifies which OpenAI model to use for generation.'
+                        },
+                        {
+                            key: 'ANTHROPIC_API_KEY',
+                            required: false,
+                            description: 'Anthropic API key for Claude',
+                            format: 'Anthropic API key string starting with sk-ant-',
+                            whereToGet: 'Anthropic Console -> API Keys.',
+                            usedFor: 'Generates content when AI_PROVIDER is set to "anthropic".'
+                        },
+                        {
+                            key: 'ANTHROPIC_MODEL',
+                            required: false,
+                            description: 'Anthropic Claude model to use',
+                            format: 'e.g. claude-3-5-sonnet-20240620, claude-3-opus-20240229',
+                            whereToGet: 'Anthropic documentation for available models.',
+                            usedFor: 'Specifies which Claude model to use for generation.'
                         }
                     ],
                     'LinkedIn': [
@@ -364,7 +401,10 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                                 \${setting.format ? '<p class="text-xs text-gray-500 mb-1"><strong>Format:</strong> ' + setting.format + '</p>' : ''}
                                 <p class="text-xs text-gray-600 truncate max-w-xs">\${displayValue}</p>
                             </div>
-                            <button onclick="editSetting('\${key}', '\${isHidden ? '' : value}')" class="text-blue-500 text-sm hover:underline">\${value ? 'Edit' : 'Add'}</button>
+                            <div class="flex flex-col items-end gap-2">
+                                <button onclick="editSetting('\${key}', '\${isHidden ? '' : value}')" class="text-blue-500 text-sm hover:underline">\${value ? 'Edit' : 'Add'}</button>
+                                \${key === 'MASTER_ENCRYPTION_KEY' ? '<button onclick="generateMasterKey()" class="text-green-600 text-xs hover:underline">Generate New Key</button>' : ''}
+                            </div>
                         \`;
                         
                         categoryDiv.querySelector('div').appendChild(div);
@@ -396,6 +436,7 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
         async function testSupabaseConnection() {
             const statusText = document.getElementById('supabase-status-text');
             const statusDiv = document.getElementById('supabase-status');
+            const warningDiv = document.getElementById('supabase-warning');
             
             try {
                 const res = await fetch('/api/admin/settings', {
@@ -404,23 +445,27 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                 
                 if (res.ok) {
                     const settings = await res.json();
-                    const supabaseUrl = settings['SUPABASE_URL'] || process.env.SUPABASE_URL || '';
-                    const supabaseKey = settings['SUPABASE_ANON_KEY'] || process.env.SUPABASE_ANON_KEY || '';
+                    const supabaseUrl = settings['SUPABASE_URL'] || '';
+                    const supabaseKey = settings['SUPABASE_ANON_KEY'] || '';
                     
                     if (supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder') || !supabaseUrl || !supabaseKey) {
                         statusText.textContent = '⚠️ Not configured. Please set up Supabase database above.';
                         statusDiv.className = 'mb-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200';
+                        warningDiv.classList.remove('hidden');
                     } else {
                         statusText.textContent = '✅ Connected to Supabase database. Settings will be saved persistently.';
                         statusDiv.className = 'mb-8 p-4 bg-green-50 rounded-lg border border-green-200';
+                        warningDiv.classList.add('hidden');
                     }
                 } else {
                     statusText.textContent = '❌ Failed to connect to database. Check your Supabase credentials.';
                     statusDiv.className = 'mb-8 p-4 bg-red-50 rounded-lg border border-red-200';
+                    warningDiv.classList.remove('hidden');
                 }
             } catch (e) {
                 statusText.textContent = '❌ Connection error: ' + e.message;
                 statusDiv.className = 'mb-8 p-4 bg-red-50 rounded-lg border border-red-200';
+                warningDiv.classList.remove('hidden');
             }
         }
         
@@ -507,6 +552,17 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
             document.getElementById('new-value').focus();
         }
 
+        function generateMasterKey() {
+            const bytes = new Uint8Array(32);
+            window.crypto.getRandomValues(bytes);
+            const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+            
+            if (confirm('Generate a new random 32-byte Master Encryption Key? You will need to click "Save Setting" after this to apply it.')) {
+                editSetting('MASTER_ENCRYPTION_KEY', hex);
+                alert('New key generated and populated in the form below. Please click "Save Setting" to save it permanently.');
+            }
+        }
+
         function updateSelectedSettingHelp(key) {
             const helpBox = document.getElementById('selected-setting-help');
             const setting = (window.settingHelpByKey || {})[key];
@@ -553,6 +609,19 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
             if (key === 'SUPABASE_ANON_KEY') {
                 if (!value.startsWith('eyJ') && !value.startsWith('sb_publishable_')) {
                     validationErrors.push('SUPABASE_ANON_KEY must start with eyJ (JWT) or sb_publishable_ (modern key)');
+                }
+            }
+
+            if (key === 'AI_PROVIDER') {
+                const normalized = value.trim().toLowerCase();
+                if (normalized !== 'openai' && normalized !== 'anthropic') {
+                    validationErrors.push('AI_PROVIDER must be either "openai" or "anthropic"');
+                }
+            }
+
+            if (key === 'ANTHROPIC_API_KEY') {
+                if (!value.startsWith('sk-ant-')) {
+                    validationErrors.push('ANTHROPIC_API_KEY must start with "sk-ant-"');
                 }
             }
             

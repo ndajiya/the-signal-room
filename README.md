@@ -77,23 +77,29 @@ Recommended in the Vercel project settings after import:
 - `Node.js Version`: `22.x`
 - `Production Branch`: your main branch, usually `main`
 
-Add these environment variables in Vercel before the first production test:
+Add these **Bootstrap Environment Variables** in Vercel to get your dashboard running:
 
-- `ADMIN_SECRET`
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `QUICK_NODE_URL`
-- `MASTER_ENCRYPTION_KEY`
-- `SPONSOR_PRIVATE_KEY`
-- `OWNER_WHATSAPP_NUMBER`
-- `OPENAI_API_KEY`
-- `META_WA_ACCESS_TOKEN`
-- `META_WA_SENDER_PHONE_NUMBER_ID`
-- `META_WA_WABA_ID`
+- `ADMIN_SECRET`: Your dashboard password.
+- `SUPABASE_URL`: From your Supabase project.
+- `SUPABASE_ANON_KEY`: From your Supabase project.
+
+Once the dashboard is live, you can configure the rest of the application settings through the UI.
+
+### Critical Application Settings
+Every user who deploys this bot (the "Operator") must provide their own keys for the following services:
+
+- **Blockchain**: `QUICK_NODE_URL`, `SPONSOR_PRIVATE_KEY`, `MASTER_ENCRYPTION_KEY`
+- **WhatsApp**: `META_WA_ACCESS_TOKEN`, `META_WA_SENDER_PHONE_NUMBER_ID`, `META_WA_WABA_ID`, `OWNER_WHATSAPP_NUMBER`
+- **AI (Interchangeable)**:
+  - `AI_PROVIDER`: "openai" or "anthropic" (Claude).
+  - `OPENAI_API_KEY`: Required if provider is "openai".
+  - `ANTHROPIC_API_KEY`: Required if provider is "anthropic".
 
 Optional environment variables:
 
 - `LINKEDIN_ACCESS_TOKEN`
+- `ANTHROPIC_MODEL`
+- `OPENAI_MODEL`
 - `TOKEN_CONTRACT_ADDRESS`
 - `TOKEN_SYMBOL`
 - `TOKEN_DECIMALS`
@@ -131,7 +137,8 @@ Run the [setup_viral_radar.sql](file:///c%3A/Users/ndaji/Documents/cryptosapp-wa
 ### 3. Admin Dashboard Configuration
 Once deployed, visit `/api/admin/dashboard` to set up your brand identity and critical keys:
 - `OWNER_WHATSAPP_NUMBER`
-- `OPENAI_API_KEY`
+- `AI_PROVIDER`: "openai" or "anthropic" (Claude).
+- `OPENAI_API_KEY` (if using OpenAI) or `ANTHROPIC_API_KEY` (if using Claude)
 - `SPONSOR_PRIVATE_KEY`
 - `LINKEDIN_ACCESS_TOKEN`
 - `BRAND_NAME` & `BRAND_TARGET_AUDIENCE`
