@@ -28,8 +28,13 @@ const handler: VercelApiHandler = async (req: VercelRequest, res: VercelResponse
     }
 
     try {
-      await updateSetting(key, value)
-      res.status(200).json({ message: 'Setting updated successfully' })
+      const storage = await updateSetting(key, value)
+      res.status(200).json({
+        message: storage === 'database'
+          ? 'Setting saved to Supabase'
+          : 'Setting stored temporarily in server memory',
+        storage,
+      })
       return
     } catch (error) {
       res.status(500).json({ message: (error as Error).message })

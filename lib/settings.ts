@@ -44,7 +44,10 @@ export async function isMessagingPlatformActive(
 // In-memory store for settings when Supabase isn't available
 const inMemorySettings = new Map<string, string>()
 
-export async function updateSetting(key: string, value: string): Promise<void> {
+export async function updateSetting(
+  key: string,
+  value: string,
+): Promise<'database' | 'memory'> {
   // Update environment variable for immediate use
   process.env[key] = value
   
@@ -71,7 +74,7 @@ export async function updateSetting(key: string, value: string): Promise<void> {
     // Store in memory for initial setup
     inMemorySettings.set(key, value)
     console.log(`Setting ${key} stored in memory (Supabase not configured)`)
-    return
+    return 'memory'
   }
   
   try {
@@ -86,10 +89,12 @@ export async function updateSetting(key: string, value: string): Promise<void> {
     // Remove from in-memory store if successfully saved to DB
     inMemorySettings.delete(key)
     console.log(`Setting ${key} saved to database`)
+    return 'database'
   } catch (error) {
     // Fallback to in-memory storage if Supabase connection fails
     inMemorySettings.set(key, value)
     console.log(`Setting ${key} stored in memory (Supabase connection failed: ${(error as Error).message})`)
+    return 'memory'
   }
 }
 

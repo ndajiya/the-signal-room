@@ -718,7 +718,12 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                 });
                 
                 if (res.ok) {
-                    alert('✅ Setting saved successfully!');
+                    const result = await res.json();
+                    if (result.storage === 'memory') {
+                        alert('⚠️ Setting stored temporarily only. Add SUPABASE_URL and SUPABASE_ANON_KEY to Vercel so it persists across requests.');
+                    } else {
+                        alert('✅ Setting saved to Supabase.');
+                    }
                     loadSettings();
                     document.getElementById('new-key').value = '';
                     document.getElementById('new-value').value = '';

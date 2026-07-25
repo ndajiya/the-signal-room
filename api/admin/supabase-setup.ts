@@ -44,8 +44,11 @@ const handler: VercelApiHandler = async (req: VercelRequest, res: VercelResponse
     console.log(`Supabase environment variables updated: URL=${supabaseUrl.substring(0, 30)}..., Key=${supabaseAnonKey.substring(0, 20)}...`)
     
     // Now save to database using the NEW credentials
-    await updateSetting('SUPABASE_URL', supabaseUrl)
-    await updateSetting('SUPABASE_ANON_KEY', supabaseAnonKey)
+    const urlStorage = await updateSetting('SUPABASE_URL', supabaseUrl)
+    const keyStorage = await updateSetting('SUPABASE_ANON_KEY', supabaseAnonKey)
+    const storage = urlStorage === 'database' && keyStorage === 'database'
+      ? 'database'
+      : 'memory'
     
     console.log(`Supabase configuration saved to database`)
     
@@ -53,6 +56,7 @@ const handler: VercelApiHandler = async (req: VercelRequest, res: VercelResponse
       message: 'Supabase configuration saved successfully',
       supabaseUrl: supabaseUrl.substring(0, 30) + '...',
       supabaseAnonKey: supabaseAnonKey.substring(0, 20) + '...',
+      storage,
       status: 'configured'
     })
     return
