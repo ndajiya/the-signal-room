@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signal Room</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #101827; color: #e5edf7; }
+      main { width: min(680px, calc(100% - 40px)); padding: 40px; border: 1px solid #26354d; border-radius: 18px; background: #172235; box-shadow: 0 20px 60px #08101f88; }
+      h1 { margin: 0 0 12px; font-size: 2.4rem; }
+      p { color: #aebdd0; line-height: 1.6; }
+      .status { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: #123b2b; color: #8be0b0; font-size: .9rem; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #44d483; }
+      nav { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+      a { color: #9dc5ff; text-decoration: none; padding: 10px 14px; border: 1px solid #38547c; border-radius: 9px; }
+      a:hover { background: #223552; }
+      code { color: #cbdcff; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="status"><span class="dot"></span> Signal Room is online</span>
+      <h1>Signal Room</h1>
+      <p>
+        A WhatsApp and Telegram wallet bot for Polygon zkEVM, with AI-powered Viral Radar content intelligence and LinkedIn rewards.
+      </p>
+      <p>Use the configured messaging bot to access wallet features. Administrators can use the dashboard to configure the service.</p>
+      <nav>
+        <a href="/api/admin/dashboard">Admin dashboard</a>
+        <a href="/README.md">Documentation</a>
+      </nav>
+    </main>
+  </body>
+</html>
