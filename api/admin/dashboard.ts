@@ -421,14 +421,20 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                         const isHidden = value === '********' || key.includes('KEY') || key.includes('TOKEN') || key.includes('SECRET') || key.includes('PRIVATE');
                         const isRequired = setting.required;
                         const description = setting.description;
+                        const settingColor = value ? 'text-green-600' : (isRequired ? 'text-red-600' : 'text-blue-600');
+                        const settingBadge = value
+                            ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Set</span>'
+                            : (isRequired
+                                ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>'
+                                : '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Optional</span>');
                         
                         const div = document.createElement('div');
                         div.className = 'flex justify-between items-start p-3 bg-gray-50 rounded border';
                         div.innerHTML = \`
                             <div>
                                 <div class="flex items-center gap-2 mb-1">
-                                    <span class="font-mono text-sm font-bold \${isRequired ? 'text-red-600' : 'text-blue-600'}">\${key}</span>
-                                    \${isRequired ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Required</span>' : '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Optional</span>'}
+                                    <span class="font-mono text-sm font-bold \${settingColor}">\${key}</span>
+                                    \${settingBadge}
                                     <span
                                         class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-sm cursor-help"
                                         aria-label="More info about \${key}"
