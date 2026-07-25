@@ -1,4 +1,4 @@
-import { getSupabaseClient } from './supabase'
+import { getSupabaseSettingsClient } from './supabase'
 
 export async function getSetting(key: string): Promise<string | null> {
   // First check in-memory store
@@ -13,7 +13,7 @@ export async function getSetting(key: string): Promise<string | null> {
   if (!supabaseUrl.includes('placeholder') && !supabaseAnonKey.includes('placeholder') && supabaseUrl && supabaseAnonKey) {
     try {
       // Check DB
-      const { data, error } = await getSupabaseClient()
+      const { data, error } = await getSupabaseSettingsClient()
         .from('settings')
         .select('value')
         .eq('key', key)
@@ -78,7 +78,7 @@ export async function updateSetting(
   }
   
   try {
-    const { error } = await getSupabaseClient()
+    const { error } = await getSupabaseSettingsClient()
       .from('settings')
       .upsert({ key, value, updated_at: new Date().toISOString() })
 
@@ -91,10 +91,12 @@ export async function updateSetting(
     console.log(`Setting ${key} saved to database`)
     return 'database'
   } catch (error) {
-    // Fallback to in-memory storage if Supabase connection fails
-    inMemorySettings.set(key, value)
-    console.log(`Setting ${key} stored in memory (Supabase connection failed: ${(error as Error).message})`)
-    return 'memory'
+    // Once Supabase credentials are configured, do not silently claim a
+    // successful save when the table, permissions, or connection are broken.
+    // A serverless instance's memory is not durable across requests.
+    const message = (error as Error).message
+    console.error(`Failed to persist setting ${key} to Supabase: ${message}`)
+    throw new Error(`Could not save ${key} to Supabase: ${message}`)
   }
 }
 
@@ -119,7 +121,7 @@ async function migrateInMemorySettingsToDB(): Promise<void> {
   }))
   
   try {
-    const { error } = await getSupabaseClient()
+    const { error } = await getSupabaseSettingsClient()
       .from('settings')
       .upsert(settingsToMigrate)
     
@@ -139,7 +141,7 @@ async function migrateInMemorySettingsToDB(): Promise<void> {
 export async function getAllSettings(): Promise<Record<string, string>> {
   let data, error;
   try {
-    const result = await getSupabaseClient().from('settings').select('*');
+    const result = await getSupabaseSettingsClient().from('settings').select('*');
     data = result.data;
     error = result.error;
   } catch (e) {
@@ -178,7 +180,8 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     'BRAND_VALUE_PROPOSITION',
     'LINKEDIN_DRAFT_PROMPT',
     'SUPABASE_URL',
-    'SUPABASE_ANON_KEY'
+    'SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY'
   ]
   
   for (const k of keys) {

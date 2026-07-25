@@ -34,5 +34,28 @@ export function getSupabaseClient() {
   return initializeSupabase()
 }
 
+let settingsClient: any = null
+let currentSettingsUrl = ''
+let currentSettingsKey = ''
+
+// Settings contain secrets and are written only by server-side admin routes.
+// Prefer the service-role key so Supabase RLS policies do not block admin
+// persistence. Fall back to the publishable key for existing deployments.
+export function getSupabaseSettingsClient() {
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://placeholder.supabase.co'
+  const settingsKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    'placeholder'
+
+  if (supabaseUrl !== currentSettingsUrl || settingsKey !== currentSettingsKey) {
+    currentSettingsUrl = supabaseUrl
+    currentSettingsKey = settingsKey
+    settingsClient = createClient(supabaseUrl, settingsKey)
+  }
+
+  return settingsClient
+}
+
 // For backward compatibility
 export const supabase = getSupabaseClient()

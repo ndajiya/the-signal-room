@@ -260,6 +260,7 @@ Settings can be supplied as Vercel environment variables or stored in Supabase t
 | --- | --- | --- |
 | `SUPABASE_URL` | Yes | Supabase project URL |
 | `SUPABASE_ANON_KEY` | Yes | Supabase publishable/anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Recommended for admin persistence | Server-only Supabase secret used for settings reads/writes when RLS blocks the publishable key; never expose it to clients |
 | `ADMIN_SECRET` | Yes | Protects the admin dashboard and reward endpoint |
 | `MASTER_ENCRYPTION_KEY` | Yes | Encrypts stored wallet private keys; use a long random secret |
 | `ACTIVE_MESSAGING_PLATFORM` | No | `whatsapp`, `telegram`, or `both`; defaults to `both` |

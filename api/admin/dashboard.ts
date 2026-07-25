@@ -139,6 +139,14 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             whereToGet: 'Supabase Dashboard -> Project Settings -> API -> Publishable key / anon key.',
                             usedFor: 'Authenticates frontend-safe requests from this app to Supabase.'
                         }
+                        ,{
+                            key: 'SUPABASE_SERVICE_ROLE_KEY',
+                            required: false,
+                            description: 'Server-only Supabase service-role key for settings persistence',
+                            format: 'Secret key from Supabase Project Settings -> API',
+                            whereToGet: 'Supabase Dashboard -> Project Settings -> API -> secret service_role key.',
+                            usedFor: 'Allows server-side admin settings reads and writes when Row Level Security blocks the publishable key.'
+                        }
                     ],
                     'Blockchain': [
                         {
