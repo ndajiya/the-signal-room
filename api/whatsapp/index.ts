@@ -4,12 +4,17 @@ import axios from 'axios'
 
 import { WhatsappNewMessageEventNotificationRequest } from './types'
 import { sleep } from '../../lib/utils/sleep'
+import { isMessagingPlatformActive } from '../../lib/settings'
 
 const handler: VercelApiHandler = async (
   req: WhatsappNewMessageEventNotificationRequest,
   res: VercelResponse,
 ) => {
   if (req.method === 'GET') {
+    if (!(await isMessagingPlatformActive('whatsapp'))) {
+      res.status(404).send('Not found')
+      return
+    }
     try {
       const mode = req.query['hub.mode']
       const token = req.query['hub.verify_token']
@@ -33,6 +38,10 @@ const handler: VercelApiHandler = async (
       return
     }
   } else if (req.method === 'POST') {
+    if (!(await isMessagingPlatformActive('whatsapp'))) {
+      res.status(404).send('Not found')
+      return
+    }
     try {
       // send request to other lambda function but not await it to responde immediately to whatsapp with a 200 status code
       axios.post(

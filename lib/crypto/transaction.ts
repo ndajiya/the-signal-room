@@ -1,30 +1,30 @@
 import { ethers } from 'ethers'
 
-import { bscUsdtContractAddress } from '.'
+import { getTokenBalanceByAddress, getTokenConfig, quickNodeUrl } from '.'
 import usdtBEP20 from './abis/usdtBEP20.json'
 
 import {
   User,
   getAddressByPhoneNumber,
+  getAddressByUserId,
   getUserFromId,
   getUserFromPhoneNumber,
-} from 'lib/user'
+} from '../user'
 import { supabase } from '../../lib/supabase'
-
-const quickNodeUrl = process.env.QUICK_NODE_URL
-
-if (!quickNodeUrl) {
-  throw new Error('QUICK_NODE_URL is not defined')
-}
 
 type Status =
   | 'ADDRESS_PENDING'
   | 'AMOUNT_PENDING'
+  | 'PIN_PENDING'
+  | 'BALANCE_PENDING'
+  | 'REGISTRATION_PENDING'
+  | 'LINKEDIN_PENDING'
+  | 'LINKEDIN_CHOICE_PENDING'
   | 'CONFIRMED'
   | 'CANCELLED'
   | 'ERROR'
 
-type PaymentRequest = {
+export type PaymentRequest = {
   id: string
   createdAt: string
   fromUserId: string
@@ -37,6 +37,150 @@ type PaymentRequest = {
 export type Address = string
 export type PhoneNumber = string
 
+export async function getPendingPaymentRequest(
+  userId: string,
+): Promise<PaymentRequest | null> {
+  const { data, error } = await supabase
+    .from('payment_requests')
+    .select('*')
+    .eq('from_user_id', userId)
+    .not('status', 'in', '["CONFIRMED","CANCELLED","ERROR"]')
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (error || !data || data.length === 0) {
+    return null
+  }
+
+  const { id, created_at, from_user_id, status, amount, to_user_id, to } =
+    data[0]
+
+  return {
+    id,
+    createdAt: created_at,
+    fromUserId: from_user_id,
+    toUserId: to_user_id,
+    status: status as Status,
+    to,
+    amount,
+  }
+}
+
+export async function isUserAwaitingPinInput(userId: string) {
+  const pr = await getPendingPaymentRequest(userId)
+  return pr?.status === 'PIN_PENDING'
+}
+
+export async function setPaymentRequestToPinPending({
+  userId,
+  amount,
+}: {
+  userId: string
+  amount: number
+}) {
+  await supabase
+    .from('payment_requests')
+    .update({
+      amount,
+      status: 'PIN_PENDING',
+    })
+    .eq('from_user_id', userId)
+    .eq('status', 'AMOUNT_PENDING')
+}
+
+export async function isUserAwaitingBalancePinInput(userId: string) {
+  const pr = await getPendingPaymentRequest(userId)
+  return pr?.status === 'BALANCE_PENDING'
+}
+
+export async function isUserAwaitingLinkedinInput(userId: string) {
+  const pr = await getPendingPaymentRequest(userId)
+  return pr?.status === 'LINKEDIN_PENDING'
+}
+
+export async function isUserAwaitingLinkedinChoice(userId: string) {
+  const pr = await getPendingPaymentRequest(userId)
+  return pr?.status === 'LINKEDIN_CHOICE_PENDING'
+}
+
+export async function setPaymentRequestToLinkedinChoicePending(userId: string) {
+  await makePaymentRequest({
+    amount: null,
+    fromUserId: userId,
+    to: 'LINKEDIN_CHOICE',
+  })
+
+  await supabase
+    .from('payment_requests')
+    .update({
+      status: 'LINKEDIN_CHOICE_PENDING',
+    })
+    .eq('from_user_id', userId)
+    .eq('status', 'ADDRESS_PENDING')
+    .eq('to', 'LINKEDIN_CHOICE')
+}
+
+export async function setPaymentRequestToLinkedinPending(userId: string) {
+  await makePaymentRequest({
+    amount: null,
+    fromUserId: userId,
+    to: 'LINKEDIN_LINK',
+  })
+
+  await supabase
+    .from('payment_requests')
+    .update({
+      status: 'LINKEDIN_PENDING',
+    })
+    .eq('from_user_id', userId)
+    .eq('status', 'ADDRESS_PENDING')
+    .eq('to', 'LINKEDIN_LINK')
+}
+
+export async function setRegistrationPending(phoneNumber: string) {
+  await supabase.from('payment_requests').insert({
+    status: 'REGISTRATION_PENDING',
+    to: phoneNumber,
+    from_user_id: null, // No user yet
+  })
+}
+
+export async function isRegistrationPending(phoneNumber: string) {
+  const { data } = await supabase
+    .from('payment_requests')
+    .select('*')
+    .eq('to', phoneNumber)
+    .eq('status', 'REGISTRATION_PENDING')
+    .limit(1)
+
+  return data && data.length > 0
+}
+
+export async function clearRegistrationPending(phoneNumber: string) {
+  await supabase
+    .from('payment_requests')
+    .delete()
+    .eq('to', phoneNumber)
+    .eq('status', 'REGISTRATION_PENDING')
+}
+
+export async function setPaymentRequestToBalancePending(userId: string) {
+  await makePaymentRequest({
+    amount: null,
+    fromUserId: userId,
+    to: 'BALANCE_CHECK',
+  })
+
+  await supabase
+    .from('payment_requests')
+    .update({
+      status: 'BALANCE_PENDING',
+    })
+    .eq('from_user_id', userId)
+    .eq('status', 'ADDRESS_PENDING')
+    .eq('to', 'BALANCE_CHECK')
+}
+
 export async function makePaymentRequest({
   fromUserId,
   to,
@@ -46,7 +190,22 @@ export async function makePaymentRequest({
   to: Address | PhoneNumber | null
   amount: number | null
 }): Promise<PaymentRequest> {
-  // TODO: validate user has enough balance
+  // Validate user has enough balance if amount is provided
+  if (amount !== null && amount > 0) {
+    try {
+      const userAddress = await getAddressByUserId(fromUserId)
+      const balance = await getTokenBalanceByAddress(userAddress)
+      
+      if (balance < amount) {
+        throw new Error(`Insufficient balance. Your balance is ${balance}, but you tried to send ${amount}.`)
+      }
+    } catch (error) {
+      // If balance check fails (e.g. network error), we might still want to allow the request
+      // but here we'll rethrow to be safe
+      console.error('Balance validation error:', error)
+      throw error
+    }
+  }
 
   const paymentRequest = (await supabase.from('payment_requests').insert({
     status: 'ADDRESS_PENDING',
@@ -62,25 +221,52 @@ export async function sendUsdtFromWallet({
   tokenAmount,
   toAddress,
   privateKey,
+  isSponsored = false,
 }: {
   tokenAmount: number
   toAddress: string
   privateKey: string
+  isSponsored?: boolean
 }) {
   try {
+    const tokenConfig = await getTokenConfig()
     const provider = new ethers.JsonRpcProvider(quickNodeUrl)
     const wallet = new ethers.Wallet(privateKey, provider)
     const walletSigner = wallet.connect(provider)
 
+    // Sponsorship Logic (Simplified Paymaster)
+    if (isSponsored) {
+      const sponsorPrivateKey = process.env.SPONSOR_PRIVATE_KEY
+      if (sponsorPrivateKey) {
+        const sponsorWallet = new ethers.Wallet(sponsorPrivateKey, provider)
+        const balance = await provider.getBalance(wallet.address)
+        const gasPrice = (await provider.getFeeData()).gasPrice || ethers.parseUnits('30', 'gwei')
+        
+        // If user has less than 0.005 ETH, top them up from sponsor
+        if (balance < ethers.parseEther('0.005')) {
+          console.log(`Sponsoring gas for ${wallet.address}`)
+          const tx = await sponsorWallet.sendTransaction({
+            to: wallet.address,
+            value: ethers.parseEther('0.005'),
+            gasPrice
+          })
+          await tx.wait()
+        }
+      }
+    }
+
     // general token send
     const contract = new ethers.Contract(
-      bscUsdtContractAddress,
+      tokenConfig.contractAddress,
       usdtBEP20,
       walletSigner,
     )
 
     // How many tokens?
-    const numberOfTokens = ethers.parseUnits(String(tokenAmount), 18)
+    const numberOfTokens = ethers.parseUnits(
+      String(tokenAmount),
+      tokenConfig.decimals,
+    )
 
     // Send tokens
     const transferResult = await contract.transfer(toAddress, numberOfTokens)
@@ -99,7 +285,7 @@ export async function sendUsdtFromWallet({
     )
 
     if (isInsufficientGas) {
-      throw new Error('No tenés suficiente BNB para pagar el gas')
+      throw new Error("You don't have enough ETH to pay for gas")
     }
 
     throw error
@@ -247,8 +433,8 @@ export async function cancelPaymentRequest(userId: string) {
     .neq('status', 'CANCELLED')
     .neq('status', 'ERROR')
 }
-export function getBscScanUrlForAddress(address: string) {
-  return `https://goto.bscscan.com/address/${address}`
+export function getPolygonScanUrlForAddress(address: string) {
+  return `https://zkevm.polygonscan.com/address/${address}`
 }
 
 export async function updatePaymentRequestToError(userId: string) {

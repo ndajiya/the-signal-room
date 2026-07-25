@@ -1,10 +1,25 @@
 import WhatsappCloudAPI from 'whatsappcloudapi_wrapper'
 
-export const Whatsapp = new WhatsappCloudAPI({
-  accessToken: process.env.META_WA_ACCESS_TOKEN,
-  senderPhoneNumberId: process.env.META_WA_SENDER_PHONE_NUMBER_ID,
-  WABA_ID: process.env.META_WA_WABA_ID,
-})
+// Create a placeholder WhatsApp instance that won't throw on initialization
+let Whatsapp: any = null
+
+try {
+  const accessToken = process.env.META_WA_ACCESS_TOKEN
+  const senderPhoneNumberId = process.env.META_WA_SENDER_PHONE_NUMBER_ID
+  const WABA_ID = process.env.META_WA_WABA_ID
+  
+  if (accessToken && senderPhoneNumberId && WABA_ID) {
+    Whatsapp = new WhatsappCloudAPI({
+      accessToken,
+      senderPhoneNumberId,
+      WABA_ID,
+    })
+  } else {
+    console.warn('META_WA_ACCESS_TOKEN, META_WA_SENDER_PHONE_NUMBER_ID, or META_WA_WABA_ID not set. WhatsApp functionality will be limited.')
+  }
+} catch (error) {
+  console.warn('Failed to initialize WhatsApp Cloud API:', error)
+}
 
 /**
  * Send a simple message to user
@@ -15,6 +30,10 @@ export async function sendMessageToPhoneNumber(
   recipientPhone: string,
   message: string,
 ): Promise<void> {
+  if (!Whatsapp) {
+    console.warn('WhatsApp not initialized. Cannot send message to:', recipientPhone)
+    return
+  }
   await Whatsapp.sendText({
     recipientPhone,
     message,
@@ -35,9 +54,28 @@ export async function sendSimpleButtonsMessage(
     id: string
   }[],
 ): Promise<void> {
+  if (!Whatsapp) {
+    console.warn('WhatsApp not initialized. Cannot send buttons message to:', recipientPhone)
+    return
+  }
   await Whatsapp.sendSimpleButtons({
     recipientPhone,
     message,
     listOfButtons: buttons,
   })
 }
+
+/**
+ * Mark a message as read
+ * @param params
+ */
+export async function markMessageAsRead(params: { message_id: string }): Promise<void> {
+  if (!Whatsapp) {
+    console.warn('WhatsApp not initialized. Cannot mark message as read:', params.message_id)
+    return
+  }
+  await Whatsapp.markMessageAsRead(params)
+}
+
+// Export the Whatsapp instance
+export { Whatsapp }
