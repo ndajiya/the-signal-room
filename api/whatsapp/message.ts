@@ -20,7 +20,7 @@ import {
 
 import { createUser } from '../../lib/user'
 
-import { getAccountBalances } from 'lib/crypto'
+import { getAccountBalances } from '../../lib/crypto'
 import {
   Address,
   PhoneNumber,
