@@ -105,7 +105,16 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                 const res = await fetch('/api/admin/settings', {
                     headers: { 'Authorization': 'Bearer ' + currentSecret }
                 });
-                if (!res.ok) throw new Error('Unauthorized or error');
+                if (!res.ok) {
+                    let detail = 'Unable to load settings';
+                    try {
+                        const errorBody = await res.json();
+                        if (errorBody.message) detail = errorBody.message;
+                    } catch (_) {
+                        // Keep the HTTP status as the fallback when the response is not JSON.
+                    }
+                    throw new Error(`${detail} (HTTP ${res.status})`);
+                }
                 
                 const settings = await res.json();
                 const list = document.getElementById('settings-list');
@@ -470,8 +479,8 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                 
                 if (res.ok) {
                     const settings = await res.json();
-                    const supabaseUrl = settings['SUPABASE_URL'] || process.env.SUPABASE_URL || '';
-                    const supabaseKey = settings['SUPABASE_ANON_KEY'] || process.env.SUPABASE_ANON_KEY || '';
+                    const supabaseUrl = settings['SUPABASE_URL'] || '';
+                    const supabaseKey = settings['SUPABASE_ANON_KEY'] || '';
                     
                     if (supabaseUrl.includes('placeholder') || supabaseKey.includes('placeholder') || !supabaseUrl || !supabaseKey) {
                         statusText.textContent = '⚠️ Not configured. Please set up Supabase database above.';
