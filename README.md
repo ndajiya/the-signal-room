@@ -44,6 +44,38 @@ Telegram webhook:
 
 Telegram users are stored with an identity such as `telegram:<chat-id>`. They are separate accounts from WhatsApp users unless an explicit account-linking flow is added.
 
+#### Telegram wallet commands
+
+Telegram users can use the inline buttons or these commands:
+
+| Command | Action |
+| --- | --- |
+| `/start` | Start onboarding or open the wallet menu |
+| `/register` | Start wallet registration |
+| `/wallet` | Open the wallet; prompts unregistered users to create one |
+| `/deposit` | Show the wallet address for ETH and token deposits |
+| `/balance` | Request the PIN and show ETH and token balances |
+| `/send` | Start a token transfer to a wallet address or registered WhatsApp number |
+| `/linkedin` | Start LinkedIn account linking |
+| `/cancel` | Cancel the current transfer or wallet action |
+| `/help` | Show the command list |
+
+During wallet creation, send the requested PIN as a normal message. During a balance check or transfer, send the PIN when prompted. During `/send`, send the recipient first, then the amount, then the PIN. For `/linkedin`, choose whether to provide a LinkedIn URN or receive a verification code.
+
+To show these commands in Telegram, open `@BotFather`, choose `/setcommands`, select the bot, and paste:
+
+```text
+start - Start onboarding or open the wallet
+register - Create a wallet
+wallet - Open the wallet menu
+deposit - Show the deposit address
+balance - Check ETH and token balances
+send - Send tokens
+linkedin - Link a LinkedIn account
+cancel - Cancel the current action
+help - Show available commands
+```
+
 ### Viral Radar
 
 The owner can send an Instagram post, Reel, or TV URL through WhatsApp or Telegram. Signal Room then:
@@ -374,4 +406,3 @@ Then deploy with:
 ```bash
 npx vercel --prod
 ```
-

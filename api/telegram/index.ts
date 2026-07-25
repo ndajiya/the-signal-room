@@ -143,7 +143,27 @@ async function handleWalletText(chatId: number, text: string) {
   const user = await getUserFromTelegramChatId(chatId)
   const body = text.trim()
 
+  const command = body.split(/\s+/)[0].toLowerCase()
+  const commandCallbacks: Record<string, string> = {
+    '/register': 'create_wallet',
+    '/wallet': 'create_wallet',
+    '/deposit': 'check_address',
+    '/balance': 'check_balance',
+    '/send': 'send_money',
+    '/linkedin': 'link_linkedin',
+    '/cancel': 'cancel_send_money',
+  }
+
+  if (command === '/help') {
+    await sendTelegramMessage(chatId, 'Signal Room commands:\n\n/start or /wallet - Set up or open your wallet\n/deposit - Show your deposit address\n/balance - Check your ETH and token balance\n/send - Send tokens\n/linkedin - Link your LinkedIn account\n/cancel - Cancel the current action\n/help - Show this help')
+    return
+  }
+
   if (!user) {
+    if (command === '/start' || command === '/register' || command === '/wallet') {
+      await handleWalletCallback(chatId, 'create_wallet')
+      return
+    }
     if (await isRegistrationPending(identifier)) {
       if (body.length < 6) {
         await sendTelegramMessage(chatId, 'Your PIN must be at least 6 digits. Please try again:')
@@ -164,6 +184,16 @@ async function handleWalletText(chatId: number, text: string) {
     await sendTelegramMessage(chatId, 'Welcome to Signal Room. Create a secure Polygon zkEVM wallet to get started.', [
       [{ text: 'Create a wallet', callback_data: 'create_wallet' }],
     ])
+    return
+  }
+
+  if (command === '/wallet') {
+    await sendWalletMenu(chatId)
+    return
+  }
+
+  if (commandCallbacks[command]) {
+    await handleWalletCallback(chatId, commandCallbacks[command])
     return
   }
 
