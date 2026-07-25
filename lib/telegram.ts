@@ -22,9 +22,19 @@ export async function getTelegramWebhookSecret(): Promise<string | null> {
   return (await getTelegramConfig()).webhookSecret
 }
 
-export async function isTelegramOwner(chatId: number | string): Promise<boolean> {
+export async function isTelegramOwner(
+  chatId: number | string,
+  username?: string,
+): Promise<boolean> {
   const { ownerChatId } = await getTelegramConfig()
-  return Boolean(ownerChatId && String(chatId) === String(ownerChatId))
+  const configuredUsername = await getSetting('OWNER_TELEGRAM_USERNAME')
+  const normalizedUsername = username?.replace(/^@/, '').toLowerCase()
+  const expectedUsername = configuredUsername?.replace(/^@/, '').toLowerCase()
+
+  return Boolean(
+    (ownerChatId && String(chatId) === String(ownerChatId)) ||
+    (expectedUsername && normalizedUsername === expectedUsername),
+  )
 }
 
 export async function sendTelegramMessage(

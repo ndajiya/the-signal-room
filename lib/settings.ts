@@ -169,6 +169,7 @@ export async function getAllSettings(): Promise<Record<string, string>> {
     'ACTIVE_MESSAGING_PLATFORM',
     'TELEGRAM_BOT_TOKEN',
     'OWNER_TELEGRAM_CHAT_ID',
+    'OWNER_TELEGRAM_USERNAME',
     'TELEGRAM_WEBHOOK_SECRET',
     'AI_PROVIDER',
     'OPENAI_API_KEY',

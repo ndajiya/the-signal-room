@@ -268,6 +268,14 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             usedFor: 'Restricts the Telegram owner channel so other users cannot run admin actions.'
                         },
                         {
+                            key: 'OWNER_TELEGRAM_USERNAME',
+                            required: false,
+                            description: 'Telegram username allowed to use owner controls',
+                            format: 'Username without @, for example: your_username',
+                            whereToGet: 'Use the username shown in your Telegram profile. Do not include the @ symbol.',
+                            usedFor: 'Alternative owner authentication when a numeric Telegram chat ID is unavailable.'
+                        },
+                        {
                             key: 'TELEGRAM_WEBHOOK_SECRET',
                             required: false,
                             description: 'Optional secret used to authenticate Telegram webhook requests',

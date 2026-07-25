@@ -46,6 +46,7 @@ import { transformStringToNumber } from '../../lib/utils/number'
 
 type TelegramMessage = {
   chat: { id: number }
+  from?: { username?: string }
   text?: string
 }
 
@@ -355,7 +356,7 @@ const handler: VercelApiHandler = async (req: VercelRequest, res: VercelResponse
 
     if (update.callback_query) {
       await answerTelegramCallback(update.callback_query.id)
-      const owner = await isTelegramOwner(chatId)
+      const owner = await isTelegramOwner(chatId, message?.from?.username)
       if (owner && (update.callback_query.data === 'approve_draft' || update.callback_query.data === 'skip_candidate')) {
         const latest = await getLatestCandidate(String(chatId))
         if (latest) {
@@ -377,7 +378,7 @@ const handler: VercelApiHandler = async (req: VercelRequest, res: VercelResponse
         await handleWalletCallback(chatId, update.callback_query.data)
       }
     } else if (update.message?.text) {
-      if (await isTelegramOwner(chatId)) {
+      if (await isTelegramOwner(chatId, update.message.from?.username)) {
         await handleOwnerText(chatId, update.message.text)
       } else {
         await handleWalletText(chatId, update.message.text)

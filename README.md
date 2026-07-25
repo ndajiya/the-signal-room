@@ -293,6 +293,7 @@ Settings can be supplied as Vercel environment variables or stored in Supabase t
 | --- | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | Yes | Token from `@BotFather` |
 | `OWNER_TELEGRAM_CHAT_ID` | Yes for owner controls | Numeric Telegram chat ID for the owner |
+| `OWNER_TELEGRAM_USERNAME` | Alternative for owner controls | Telegram username without `@`; less stable than a chat ID because usernames can change |
 | `TELEGRAM_WEBHOOK_SECRET` | No | Secret header used to authenticate Telegram webhook requests |
 
 ### AI and brand
