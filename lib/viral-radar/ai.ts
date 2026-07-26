@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+import OpenAI, { AzureOpenAI } from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 import { getSetting } from '../settings'
 
@@ -39,6 +39,25 @@ async function getAIClient() {
       provider: 'anthropic' as const,
       client: new Anthropic({ apiKey }),
       model: (await getSetting('ANTHROPIC_MODEL')) || 'claude-3-5-sonnet-20240620'
+    }
+  } else if (provider === 'azure_openai') {
+    const apiKey = await getSetting('AZURE_OPENAI_API_KEY')
+    const endpoint = await getSetting('AZURE_OPENAI_ENDPOINT')
+    const apiVersion = (await getSetting('AZURE_OPENAI_API_VERSION')) || '2024-02-15-preview'
+    const deployment = await getSetting('AZURE_OPENAI_DEPLOYMENT')
+
+    if (!apiKey) throw new Error('AZURE_OPENAI_API_KEY is not set')
+    if (!endpoint) throw new Error('AZURE_OPENAI_ENDPOINT is not set')
+    if (!deployment) throw new Error('AZURE_OPENAI_DEPLOYMENT is not set')
+
+    return {
+      provider: 'openai' as const,
+      client: new AzureOpenAI({
+        apiKey,
+        endpoint,
+        apiVersion,
+      }),
+      model: deployment,
     }
   } else {
     const apiKey = await getSetting('OPENAI_API_KEY')

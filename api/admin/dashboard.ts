@@ -289,8 +289,8 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             key: 'AI_PROVIDER',
                             required: false,
                             description: 'AI model provider to use',
-                            format: '"openai" or "anthropic"',
-                            whereToGet: 'Choose either "openai" or "anthropic".',
+                            format: '"openai", "azure_openai", or "anthropic"',
+                            whereToGet: 'Choose the AI service used for generating content.',
                             usedFor: 'Determines which AI service is used for generating content.'
                         },
                         {
@@ -308,6 +308,38 @@ const handler: VercelApiHandler = async (_req: VercelRequest, res: VercelRespons
                             format: 'e.g. gpt-4o, gpt-4-turbo, gpt-3.5-turbo',
                             whereToGet: 'OpenAI documentation for available models.',
                             usedFor: 'Specifies which OpenAI model to use for generation.'
+                        },
+                        {
+                            key: 'AZURE_OPENAI_API_KEY',
+                            required: false,
+                            description: 'Azure OpenAI API key',
+                            format: 'Azure OpenAI secret key',
+                            whereToGet: 'Azure Portal -> Azure OpenAI resource -> Keys and Endpoint.',
+                            usedFor: 'Authenticates Azure OpenAI requests when AI_PROVIDER is azure_openai.'
+                        },
+                        {
+                            key: 'AZURE_OPENAI_ENDPOINT',
+                            required: false,
+                            description: 'Azure OpenAI resource endpoint',
+                            format: 'HTTPS URL, for example https://your-resource.openai.azure.com',
+                            whereToGet: 'Azure Portal -> Azure OpenAI resource -> Keys and Endpoint.',
+                            usedFor: 'Specifies which Azure OpenAI resource receives AI requests.'
+                        },
+                        {
+                            key: 'AZURE_OPENAI_API_VERSION',
+                            required: false,
+                            description: 'Azure OpenAI API version',
+                            format: 'API version string; defaults to 2024-02-15-preview',
+                            whereToGet: 'Use an API version supported by your Azure OpenAI resource.',
+                            usedFor: 'Controls the Azure OpenAI API version used by the bot.'
+                        },
+                        {
+                            key: 'AZURE_OPENAI_DEPLOYMENT',
+                            required: false,
+                            description: 'Azure OpenAI model deployment name',
+                            format: 'The deployment name configured in Azure AI Foundry/Azure OpenAI Studio',
+                            whereToGet: 'Azure AI Foundry -> Model deployments -> Deployment name.',
+                            usedFor: 'Selects the deployed Azure OpenAI model used for scoring and draft generation.'
                         },
                         {
                             key: 'ANTHROPIC_API_KEY',

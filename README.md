@@ -300,9 +300,13 @@ Settings can be supplied as Vercel environment variables or stored in Supabase t
 
 | Setting | Required | Purpose |
 | --- | --- | --- |
-| `AI_PROVIDER` | No | `openai` or `anthropic`; defaults to `openai` |
+| `AI_PROVIDER` | No | `openai`, `azure_openai`, or `anthropic`; defaults to `openai` |
 | `OPENAI_API_KEY` | If using OpenAI | OpenAI credential |
 | `OPENAI_MODEL` | No | Defaults to `gpt-4o` |
+| `AZURE_OPENAI_API_KEY` | If using Azure OpenAI | Azure OpenAI resource key |
+| `AZURE_OPENAI_ENDPOINT` | If using Azure OpenAI | Azure OpenAI resource endpoint |
+| `AZURE_OPENAI_API_VERSION` | No | Azure API version; defaults to `2024-02-15-preview` |
+| `AZURE_OPENAI_DEPLOYMENT` | If using Azure OpenAI | Azure deployment name, not necessarily the underlying model name |
 | `ANTHROPIC_API_KEY` | If using Anthropic | Anthropic credential |
 | `ANTHROPIC_MODEL` | No | Claude model name |
 | `BRAND_NAME` | No | Brand used in generated content |
